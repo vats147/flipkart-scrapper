@@ -1,0 +1,50 @@
+{
+    "manifest_version": 3,
+    "name": "Flipkart Scraper & Helper",
+    "version": "1.0.0",
+    "description": "Scrape Flipkart links and product details.",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting",
+        "downloads",
+        "clipboardWrite",
+        "sidePanel"
+    ],
+    "host_permissions": [
+        "https://*.flipkart.com/*"
+    ],
+    "action": {
+        "default_title": "Flipkart Scraper"
+    },
+    "side_panel": {
+        "default_path": "index.html"
+    },
+    "background": {
+        "service_worker": "assets/background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://www.flipkart.com/search?*"
+            ],
+            "js": [
+                "assets/contentSearch.js"
+            ]
+        },
+        {
+            "matches": [
+                "https://www.flipkart.com/*/p/*",
+                "https://www.flipkart.com/*/P/*"
+            ],
+            "js": [
+                "assets/contentProduct.js"
+            ]
+        }
+    ],
+    "icons": {
+        "16": "icon16.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+    }
+}
