@@ -46,32 +46,52 @@ function scrapeProductDetails() {
 
     // 6. Highlights
     let highlights = [];
-    // Try common classes
+
+    // Strategy 1: Known classes
     const highlightSelectors = [
-        'div.jwbTM1 ul li',
+        'div.key-features-content ul li', // Example, unlikely to exist but legacy
         'div._2cM9lP ul li',
+        'div.x-v-m ul li',
         'li._21lJbe',
         'div._2418kt ul li'
     ];
 
-    const highlightElements = document.querySelectorAll(highlightSelectors.join(', '));
-    if (highlightElements.length > 0) {
-        highlightElements.forEach(li => highlights.push(li.innerText));
-    } else {
-        // Fallback: search by text "Highlights"
-        // Flipkart often puts "Highlights" in a div, and the list in a sibling or parent container
-        const allDivs = Array.from(document.querySelectorAll('div'));
-        const header = allDivs.find(d => d.innerText === 'Highlights' && d.classList.length > 0);
+    document.querySelectorAll(highlightSelectors.join(', ')).forEach(li => {
+        const text = li.innerText.trim();
+        if (text) highlights.push(text);
+    });
 
-        if (header) {
-            // Look for a UL in the parent's next sibling or parent's parent
-            // Case 1: Header and list are in same row container
-            const row = header.closest('div.row') || header.closest('div._3k-BhJ'); // _3k-BhJ is a common row class
-            if (row) {
-                row.querySelectorAll('ul li').forEach(li => highlights.push(li.innerText));
+    // Strategy 2: Text-based approximation (If Strategy 1 failed or returned empty)
+    if (highlights.length === 0) {
+        // Find all elements looking like a header with "Highlights"
+        const potentialHeaders = Array.from(document.querySelectorAll('*')).filter(el =>
+            el.children.length === 0 &&
+            el.innerText.trim() === 'Highlights' &&
+            el.tagName !== 'SCRIPT' &&
+            el.tagName !== 'STYLE'
+        );
+
+        for (const header of potentialHeaders) {
+            // Go up a few levels to find a container that also holds a UL
+            let parent = header.parentElement;
+            let found = false;
+            for (let i = 0; i < 5 && parent; i++) {
+                const list = parent.querySelector('ul');
+                if (list) {
+                    list.querySelectorAll('li').forEach(li => highlights.push(li.innerText.trim()));
+                    if (highlights.length > 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                parent = parent.parentElement;
             }
+            if (found) break;
         }
     }
+
+    // Deduplicate
+    highlights = [...new Set(highlights)];
 
     // 7. Specifications (Table)
     const specs = {};
