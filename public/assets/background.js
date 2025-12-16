@@ -1,0 +1,1 @@
+chrome.runtime.onMessage.addListener((e,a,n)=>{if(e.action==="download_image")return chrome.downloads.download({url:e.url,filename:`flipkart-images/${e.filename}`},o=>{n({downloadId:o})}),!0});chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:!0}).catch(e=>console.error(e));
