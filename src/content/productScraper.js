@@ -122,6 +122,7 @@ function scrapeProductDetails() {
         price: currentPrice,
         description,
         specifications: specs,
+        highlights,
         images: Array.from(imageUrls),
         url: window.location.href
     };

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
-import { Download, Play, Square, Copy, Image as ImageIcon, Power, Loader2, Check, Eye } from 'lucide-react'
+import { Download, Play, Square, Copy, Image as ImageIcon, Power, Loader2, Check, Eye, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from "@/lib/utils" // Assuming cn utility is available
 
 const CopyButton = ({ text }) => {
@@ -25,6 +25,30 @@ const CopyButton = ({ text }) => {
     >
       {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
     </Button>
+  );
+};
+
+const AccordionItem = ({ title, children, defaultOpen = false, count }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border rounded-lg overflow-hidden bg-card mb-3 shadow-sm">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 bg-muted/30 hover:bg-muted transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm">{title}</span>
+          {count !== undefined && <span className="text-xs text-muted-foreground">({count})</span>}
+        </div>
+        {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      {isOpen && (
+        <div className="p-0 animate-in slide-in-from-top-2 duration-200">
+          {children}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -286,12 +310,22 @@ function App() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
+                    {/* Header */}
                     <div>
-                      <h2 className="text-lg font-bold leading-tight">{productData.title}</h2>
-                      <p className="text-xl font-semibold text-primary mt-2">{productData.price} <span className="text-sm text-muted-foreground font-normal line-through ml-2">{productData.specifications?.MRP}</span> <span className="text-sm text-green-600 ml-1">{productData.specifications?.Discount}</span></p>
+                      <h2 className="text-lg font-bold leading-tight line-clamp-2">{productData.title}</h2>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <span className="text-2xl font-bold text-primary">{productData.price}</span>
+                        {productData.specifications?.MRP && (
+                          <span className="text-sm text-muted-foreground line-through">{productData.specifications.MRP}</span>
+                        )}
+                        {productData.specifications?.Discount && (
+                          <span className="text-sm font-medium text-green-600">{productData.specifications.Discount}</span>
+                        )}
+                      </div>
                     </div>
 
+                    {/* Action Buttons */}
                     <div className="grid grid-cols-2 gap-3">
                       <Button variant="outline" onClick={copySpecs} className="w-full">
                         <Copy className="mr-2 h-4 w-4" /> Copy All
@@ -305,47 +339,29 @@ function App() {
                       </Button>
                     </div>
 
+                    {/* Images Section */}
                     {showImages && productData.images && (
                       <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
                         <div className="flex justify-between items-center">
-                          <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm" onClick={toggleSelectAllImages}>
-                              {selectedImages.size === productData.images.length ? <Square className="h-4 w-4 mr-2 fill-current" /> : <Square className="h-4 w-4 mr-2" />}
-                              {selectedImages.size === productData.images.length ? 'Deselect All' : 'Select All'}
-                            </Button>
-                          </div>
+                          <Button variant="ghost" size="sm" onClick={toggleSelectAllImages}>
+                            {selectedImages.size === productData.images.length ? <Square className="h-4 w-4 mr-2 fill-current" /> : <Square className="h-4 w-4 mr-2" />}
+                            {selectedImages.size === productData.images.length ? 'Deselect All' : 'Select All'}
+                          </Button>
                           <Button size="sm" onClick={downloadImages} disabled={selectedImages.size === 0}>
                             <Download className="h-4 w-4 mr-2" /> Download ({selectedImages.size})
                           </Button>
                         </div>
-
                         <div className="grid grid-cols-3 gap-4">
                           {productData.images.map((img, idx) => (
                             <div key={idx} className="group relative aspect-square border rounded-md overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
                               <img src={img} alt={`Product ${idx}`} className="object-contain w-full h-full p-1" />
-
                               <div className="absolute top-2 right-2 z-10">
                                 <div
                                   className={cn("h-5 w-5 rounded border border-primary bg-white flex items-center justify-center cursor-pointer hover:bg-muted", selectedImages.has(img) && "bg-primary border-primary")}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleImageSelection(img);
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); toggleImageSelection(img); }}
                                 >
                                   {selectedImages.has(img) && <Check className="h-3 w-3 text-primary-foreground" />}
                                 </div>
-                              </div>
-
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                <Button
-                                  variant="secondary"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-full"
-                                  onClick={() => window.open(img, '_blank')}
-                                  title="Preview Full Size"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
                               </div>
                             </div>
                           ))}
@@ -353,41 +369,99 @@ function App() {
                       </div>
                     )}
 
-                    <div className="rounded-lg border overflow-hidden">
-                      <Table>
-                        <TableBody>
-                          {productData.highlights && productData.highlights.length > 0 && (
-                            <TableRow>
-                              <TableCell className="w-[140px] font-medium bg-muted/30 align-top pt-4">Highlights</TableCell>
-                              <TableCell colSpan={2} className="p-0">
-                                <ul className="divide-y border-l">
-                                  {productData.highlights.map((hl, idx) => (
-                                    <li key={idx} className="flex items-center justify-between p-2 pl-4 hover:bg-muted/50 group">
-                                      <span className="text-sm pr-2">{hl}</span>
-                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <CopyButton text={hl} />
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </TableCell>
-                            </TableRow>
-                          )}
+                    {/* Sections Logic */}
+                    {(() => {
+                      const specs = productData.specifications || {};
+                      const group1Keys = ['Price', 'MRP', 'Discount', 'Depth', 'Width', 'Height', 'Weight', 'Length', 'Dimensions'];
+                      const group2Keys = ['Model Number', 'Model Name', 'Material', 'Color', 'Items Included', 'Sales Package', 'Type', 'Occasion', 'Sub-Type', 'Suitable For', 'Ideal Location', 'Fabric', 'Pattern', 'Style Code', 'Secondary Color', 'Neck', 'Sleeve'];
 
-                          {Object.entries(productData.specifications || {}).map(([key, value]) => (
-                            <TableRow key={key}>
-                              <TableCell className="w-[140px] font-medium bg-muted/30">{key}</TableCell>
-                              <TableCell>{value}</TableCell>
-                              <TableCell className="w-[50px] text-right">
-                                <CopyButton text={value} />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                      const group1 = {};
+                      const group2 = {};
+                      const group3 = {};
 
-                    <Button onClick={clearProductData} variant="secondary" className="w-full">
+                      // Helper to render table rows
+                      const renderRows = (obj) => Object.entries(obj).map(([key, value]) => (
+                        <TableRow key={key}>
+                          <TableCell className="w-[140px] font-medium bg-muted/30 text-xs">{key}</TableCell>
+                          <TableCell className="text-sm">{value}</TableCell>
+                          <TableCell className="w-[50px] text-right">
+                            <CopyButton text={value} />
+                          </TableCell>
+                        </TableRow>
+                      ));
+
+                      // Sort specs into groups
+                      Object.entries(specs).forEach(([key, value]) => {
+                        if (group1Keys.includes(key)) group1[key] = value;
+                        else if (group2Keys.includes(key)) group2[key] = value;
+                        else group3[key] = value;
+                      });
+
+                      return (
+                        <div className="space-y-1">
+                          {/* Section 1: Price & Package */}
+                          <AccordionItem title="Price & Package Details" defaultOpen={true} count={Object.keys(group1).length}>
+                            <Table>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="w-[140px] font-medium bg-muted/30 text-xs">Selling Price</TableCell>
+                                  <TableCell className="text-sm font-bold">{productData.price}</TableCell>
+                                  <TableCell className="w-[50px] text-right"><CopyButton text={productData.price} /></TableCell>
+                                </TableRow>
+                                {renderRows(group1)}
+                              </TableBody>
+                            </Table>
+                          </AccordionItem>
+
+                          {/* Section 2: Product Specs */}
+                          <AccordionItem title="Product Specifications" defaultOpen={false} count={Object.keys(group2).length}>
+                            <Table>
+                              <TableBody>
+                                {renderRows(group2)}
+                                {Object.keys(group2).length === 0 && <div className="p-4 text-center text-muted-foreground text-sm">No specific product details found.</div>}
+                              </TableBody>
+                            </Table>
+                          </AccordionItem>
+
+                          {/* Section 3: Additional Details & Highlights */}
+                          <AccordionItem title="Additional Description & Highlights" defaultOpen={false} count={(productData.highlights?.length || 0) + Object.keys(group3).length}>
+                            <Table>
+                              <TableBody>
+                                {/* Highlights */}
+                                {productData.highlights && productData.highlights.length > 0 && (
+                                  <TableRow>
+                                    <TableCell className="w-[140px] font-medium bg-muted/30 align-top pt-4 text-xs">Highlights</TableCell>
+                                    <TableCell colSpan={2} className="p-0">
+                                      <ul className="divide-y border-l">
+                                        {productData.highlights.map((hl, idx) => (
+                                          <li key={idx} className="flex items-center justify-between p-2 pl-4 hover:bg-muted/50 group">
+                                            <span className="text-sm pr-2">{hl}</span>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <CopyButton text={hl} />
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                                {/* Remaining Specs */}
+                                {renderRows(group3)}
+                                {/* Description Text if not in specs */}
+                                {!specs['Description'] && productData.description && (
+                                  <TableRow>
+                                    <TableCell className="w-[140px] font-medium bg-muted/30 align-top pt-4 text-xs">Description</TableCell>
+                                    <TableCell colSpan={2} className="text-sm p-4">{productData.description}</TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </AccordionItem>
+                        </div>
+                      );
+                    })()}
+
+                    <Button onClick={clearProductData} variant="secondary" className="w-full mt-4">
                       Clear Results
                     </Button>
                   </div>
