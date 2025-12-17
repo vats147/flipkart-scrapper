@@ -344,18 +344,20 @@
         await setSelectValue('#listing_status', settings.listingStatus || 'ACTIVE');
 
         // Price Details
-        // Price Details
-        // Use default settings if provided, otherwise calculate from scraped price
+        // PRIORITY: 1. Scraped MRP (Specific to product) -> 2. Default MRP (Settings) -> 3. Calculated
         let mrp = 0;
         let sellingPrice = 0;
 
-        if (settings.defaultMrp) {
-            mrp = parseFloat(settings.defaultMrp);
-        } else if (product.originalMrp) {
-            // Use scraped MRP if available
+        if (product.originalMrp) {
+            // 1. Use scraped MRP (e.g. ₹1,499)
             mrp = parseFloat(product.originalMrp.replace(/[₹,]/g, '').trim()) || 0;
+            addLog(`🏷️ Using scraped MRP: ${mrp}`, 'info');
+        } else if (settings.defaultMrp) {
+            // 2. Use default setting
+            mrp = parseFloat(settings.defaultMrp);
+            addLog(`⚙️ Using default MRP: ${mrp}`, 'info');
         } else {
-            // Fallback to multiplier logic
+            // 3. Fallback calculation
             mrp = Math.round(priceNum * (settings.mrpMultiplier || 1));
         }
 
