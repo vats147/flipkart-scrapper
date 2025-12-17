@@ -168,10 +168,13 @@ function App() {
   }
 
   const downloadCSV = () => {
-    if (!isActive) return;
+    if (!isActive || scrapedProducts.length === 0) return;
     const csvContent = "data:text/csv;charset=utf-8,"
       + ["Title,URL,ID"].join(",") + "\n"
-      + scrapedProducts.map(e => `"${e.title.replace(/"/g, '""')}","${e.url}","${e.id}"`).join("\n");
+      + scrapedProducts
+        .filter(e => e && e.title) // Filter out undefined/null entries
+        .map(e => `"${(e.title || '').replace(/"/g, '""')}","${e.url || ''}","${e.id || ''}"`)
+        .join("\n");
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -274,9 +277,11 @@ function App() {
     if (!isActive || advancedProducts.length === 0) return;
     const csvContent = "data:text/csv;charset=utf-8,"
       + ["Name,Image,Price,URL,ID"].join(",") + "\n"
-      + advancedProducts.map(e =>
-        `"${(e.name || '').replace(/"/g, '""')}","${e.image}","${(e.price || '').replace(/"/g, '""')}","${e.url}","${e.id}"`
-      ).join("\n");
+      + advancedProducts
+        .filter(e => e && e.name) // Filter out undefined/null entries
+        .map(e =>
+          `"${(e.name || '').replace(/"/g, '""')}","${e.image || ''}","${(e.price || '').replace(/"/g, '""')}","${e.url || ''}","${e.id || ''}"`
+        ).join("\n");
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -382,11 +387,13 @@ function App() {
                 <div className="text-sm font-medium">Found: {scrapedProducts.length} products</div>
 
                 <div className="bg-muted p-2 rounded-md h-[200px] overflow-auto text-xs font-mono">
-                  {scrapedProducts.map((p, i) => (
-                    <div key={i} className="truncate border-b border-border py-1">
-                      {i + 1}. {p.title}
-                    </div>
-                  ))}
+                  {scrapedProducts
+                    .filter(p => p && p.title)
+                    .map((p, i) => (
+                      <div key={i} className="truncate border-b border-border py-1">
+                        {i + 1}. {p.title || 'Unknown'}
+                      </div>
+                    ))}
                   {scrapedProducts.length === 0 && <span className="text-muted-foreground">No products scraped yet.</span>}
                 </div>
               </div>
@@ -619,31 +626,37 @@ function App() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        advancedProducts.map((p, i) => (
-                          <TableRow key={p.id + i} className="hover:bg-muted/30">
-                            <TableCell className="p-2">
-                              <img
-                                src={p.image}
-                                alt=""
-                                className="h-12 w-12 object-contain rounded bg-white border"
-                              />
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline line-clamp-2"
-                                title={p.name}
-                              >
-                                {p.name}
-                              </a>
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-sm">
-                              {p.price}
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        advancedProducts
+                          .filter(p => p && p.name) // Filter out undefined entries
+                          .map((p, i) => (
+                            <TableRow key={(p.id || '') + i} className="hover:bg-muted/30">
+                              <TableCell className="p-2">
+                                {p.image ? (
+                                  <img
+                                    src={p.image}
+                                    alt=""
+                                    className="h-12 w-12 object-contain rounded bg-white border"
+                                  />
+                                ) : (
+                                  <div className="h-12 w-12 bg-muted rounded flex items-center justify-center text-xs">N/A</div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                <a
+                                  href={p.url || '#'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline line-clamp-2"
+                                  title={p.name || ''}
+                                >
+                                  {p.name || 'Unknown'}
+                                </a>
+                              </TableCell>
+                              <TableCell className="text-right font-bold text-sm">
+                                {p.price || 'N/A'}
+                              </TableCell>
+                            </TableRow>
+                          ))
                       )}
                     </TableBody>
                   </Table>
