@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
-import { Download, Play, Square, Copy, Image as ImageIcon, Power, Loader2, Check, Eye, ChevronDown, ChevronUp } from 'lucide-react'
+import { Download, Play, Square, Copy, Image as ImageIcon, Power, Loader2, Check, Eye, ChevronDown, ChevronUp, Package, Search, Database } from 'lucide-react'
 import { cn } from "@/lib/utils" // Assuming cn utility is available
 
 const CopyButton = ({ text }) => {
@@ -55,19 +55,25 @@ const AccordionItem = ({ title, children, defaultOpen = false, count }) => {
 function App() {
   const [currentTab, setCurrentTab] = useState(null)
   const [mode, setMode] = useState('unknown') // 'search' | 'product' | 'unknown'
+  const [activeTab, setActiveTab] = useState('auto') // 'auto' | 'product' | 'search' | 'scraper'
   const [isActive, setIsActive] = useState(true)
 
-  // Search State
+  // Search State (existing)
   const [scraping, setScraping] = useState(false)
   const [scrapedProducts, setScrapedProducts] = useState([])
 
-  // Product State
+  // Product State (existing)
   const [productData, setProductData] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // Image Selection State
+  // Image Selection State (existing)
   const [selectedImages, setSelectedImages] = useState(new Set())
   const [showImages, setShowImages] = useState(false)
+
+  // Advanced Search State (NEW)
+  const [advancedScraping, setAdvancedScraping] = useState(false)
+  const [advancedProducts, setAdvancedProducts] = useState([])
+  const [pagesCrawled, setPagesCrawled] = useState(0)
 
   useEffect(() => {
     // Load active state
@@ -100,6 +106,7 @@ function App() {
 
     // Listen for messages from content script
     const messageListener = (message) => {
+      // Existing search scraper messages
       if (message.action === "update_count") {
         setScrapedProducts(prev => {
           // Avoid duplicates
@@ -109,6 +116,14 @@ function App() {
         })
       } else if (message.action === "scraping_finished") {
         setScraping(false)
+      }
+      // NEW: Advanced search scraper messages
+      else if (message.action === "advanced_update") {
+        setAdvancedProducts(prev => [...prev, ...message.products]);
+        setPagesCrawled(message.pagesCrawled);
+      } else if (message.action === "advanced_scraping_finished") {
+        setAdvancedScraping(false);
+        setPagesCrawled(message.pagesCrawled || pagesCrawled);
       }
     }
     chrome.runtime.onMessage.addListener(messageListener);
@@ -238,6 +253,40 @@ function App() {
     }
   }
 
+  // ========== NEW: Advanced Scraping Functions ==========
+  const startAdvancedScraping = () => {
+    if (!isActive) return;
+    setAdvancedScraping(true);
+    setAdvancedProducts([]);
+    setPagesCrawled(0);
+    sendMessageToTab({ action: "start_advanced_scraping" });
+  }
+
+  const stopAdvancedScraping = () => {
+    setAdvancedScraping(false);
+    sendMessageToTab({ action: "stop_advanced_scraping" });
+  }
+
+  const downloadAdvancedCSV = () => {
+    if (!isActive || advancedProducts.length === 0) return;
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + ["Name,Image,Price,URL,ID"].join(",") + "\n"
+      + advancedProducts.map(e =>
+        `"${(e.name || '').replace(/"/g, '""')}","${e.image}","${(e.price || '').replace(/"/g, '""')}","${e.url}","${e.id}"`
+      ).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "flipkart_advanced_search.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Determine which view to show based on activeTab
+  const showView = activeTab === 'auto' ? mode : activeTab;
+
   return (
     <div className="w-full min-h-screen p-4 bg-background text-foreground overflow-auto">
       <Card className="border-none shadow-none">
@@ -247,7 +296,7 @@ function App() {
               <CardTitle className="text-xl flex items-center gap-2">
                 Flipkart Extension
                 <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
-                  v1.0.0
+                  v1.1.0
                 </span>
               </CardTitle>
               <CardDescription>
@@ -265,9 +314,50 @@ function App() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+
+        {/* NEW: Tab Navigation */}
+        <div className="px-6 flex gap-1 border-b bg-muted/20">
+          <button
+            onClick={() => setActiveTab('product')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+              (activeTab === 'product' || (activeTab === 'auto' && mode === 'product'))
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Package className="h-4 w-4" />
+            Product
+          </button>
+          <button
+            onClick={() => setActiveTab('search')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+              (activeTab === 'search' || (activeTab === 'auto' && mode === 'search'))
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Search className="h-4 w-4" />
+            Search
+          </button>
+          <button
+            onClick={() => setActiveTab('scraper')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+              activeTab === 'scraper'
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Database className="h-4 w-4" />
+            Scraper
+          </button>
+        </div>
+
+        <CardContent className="pt-4">
           <div className={cn("transition-opacity duration-200", isActive ? "opacity-100" : "opacity-50 pointer-events-none select-none grayscale")}>
-            {mode === 'search' && (
+            {showView === 'search' && (
               <div className="space-y-4">
                 <div className="flex gap-2">
                   {!scraping ? (
@@ -299,7 +389,7 @@ function App() {
               </div>
             )}
 
-            {mode === 'product' && (
+            {showView === 'product' && (
               <div className="space-y-6">
                 {!productData ? (
                   <div className="text-center py-10 space-y-4">
@@ -469,9 +559,100 @@ function App() {
               </div>
             )}
 
-            {mode === 'unknown' && (
+            {showView === 'unknown' && (
               <div className="text-center p-8 text-muted-foreground">
                 Please navigate to a Flipkart Search or Product page.
+              </div>
+            )}
+
+            {/* NEW: Scraper Tab UI */}
+            {activeTab === 'scraper' && (
+              <div className="space-y-4">
+                {/* Controls */}
+                <div className="flex gap-2">
+                  {!advancedScraping ? (
+                    <Button onClick={startAdvancedScraping} className="w-full">
+                      <Play className="mr-2 h-4 w-4" /> Start Scraping
+                    </Button>
+                  ) : (
+                    <Button onClick={stopAdvancedScraping} variant="destructive" className="w-full">
+                      <Square className="mr-2 h-4 w-4" /> Stop
+                    </Button>
+                  )}
+                  {advancedProducts.length > 0 && (
+                    <Button onClick={downloadAdvancedCSV} variant="outline" className="w-full">
+                      <Download className="mr-2 h-4 w-4" /> Export CSV
+                    </Button>
+                  )}
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-primary/10 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-primary">{advancedProducts.length}</div>
+                    <div className="text-xs text-muted-foreground">Products Found</div>
+                  </div>
+                  <div className="bg-blue-100 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-blue-600">{pagesCrawled}</div>
+                    <div className="text-xs text-muted-foreground">Pages Crawled</div>
+                  </div>
+                </div>
+
+                {/* Table Display */}
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-[60px]">Image</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="w-[80px] text-right">Price</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {advancedProducts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                            No products scraped yet. Click "Start Scraping" to begin.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        advancedProducts.map((p, i) => (
+                          <TableRow key={p.id + i} className="hover:bg-muted/30">
+                            <TableCell className="p-2">
+                              <img
+                                src={p.image}
+                                alt=""
+                                className="h-12 w-12 object-contain rounded bg-white border"
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline line-clamp-2"
+                                title={p.name}
+                              >
+                                {p.name}
+                              </a>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-sm">
+                              {p.price}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Status */}
+                {advancedScraping && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Scraping page {pagesCrawled}...
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -29,7 +29,8 @@
                 "https://www.flipkart.com/search?*"
             ],
             "js": [
-                "assets/contentSearch.js"
+                "assets/contentSearch.js",
+                "assets/contentAdvancedSearch.js"
             ]
         },
         {
