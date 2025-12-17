@@ -351,7 +351,11 @@
 
         if (settings.defaultMrp) {
             mrp = parseFloat(settings.defaultMrp);
+        } else if (product.originalMrp) {
+            // Use scraped MRP if available
+            mrp = parseFloat(product.originalMrp.replace(/[₹,]/g, '').trim()) || 0;
         } else {
+            // Fallback to multiplier logic
             mrp = Math.round(priceNum * (settings.mrpMultiplier || 1));
         }
 

@@ -957,13 +957,14 @@ function App() {
                       <TableRow className="bg-muted/50">
                         <TableHead className="w-[60px]">Image</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead className="w-[80px] text-right">Price</TableHead>
+                        <TableHead className="w-[80px] text-right">MRP</TableHead>
+                        <TableHead className="w-[80px] text-right">Selling</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {advancedProducts.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                             No products scraped yet. Click "Start Scraping" to begin.
                           </TableCell>
                         </TableRow>
@@ -988,14 +989,17 @@ function App() {
                                   href={p.url || '#'}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline line-clamp-2"
-                                  title={p.name || ''}
+                                  className="hover:underline font-medium line-clamp-2"
+                                  title={p.name}
                                 >
-                                  {p.name || 'Unknown'}
+                                  {p.name}
                                 </a>
                               </TableCell>
-                              <TableCell className="text-right font-bold text-sm">
-                                {p.price || 'N/A'}
+                              <TableCell className="text-xs text-right font-mono text-muted-foreground">
+                                {p.originalMrp || '-'}
+                              </TableCell>
+                              <TableCell className="text-xs text-right font-mono font-medium">
+                                {p.price || '?'}
                               </TableCell>
                             </TableRow>
                           ))
@@ -1003,19 +1007,12 @@ function App() {
                     </TableBody>
                   </Table>
                 </div>
-
-                {/* Status */}
-                {advancedScraping && (
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Scraping page {pagesCrawled}...
-                  </div>
-                )}
               </div>
             )}
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }

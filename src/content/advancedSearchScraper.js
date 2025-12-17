@@ -113,6 +113,10 @@
                     const priceEl = item.querySelector('.hZ3P6w');
                     const price = priceEl ? priceEl.textContent?.trim() : 'N/A';
 
+                    // Get MRP from .kRYCnD
+                    const mrpEl = item.querySelector('.kRYCnD');
+                    const mrp = mrpEl ? mrpEl.textContent?.trim() : '';
+
                     // Get URL from first link
                     const linkEl = item.querySelector('a[href*="/p/"]');
                     const rawUrl = linkEl?.getAttribute('href') || '';
@@ -125,6 +129,7 @@
                             name: title,
                             image: image,
                             price: price,
+                            originalMrp: mrp,
                             url: url
                         });
                     }
