@@ -393,7 +393,7 @@
         if (submitBtn) {
             submitBtn.click();
             addLog('✅ Clicked Submit!', 'success');
-            await delay(2000); // Wait for submission
+            await delay(2500); // Wait for submission (requested 1-2s, safely doing 2.5s)
         } else {
             addLog('❌ Submit button not found!', 'error');
         }
