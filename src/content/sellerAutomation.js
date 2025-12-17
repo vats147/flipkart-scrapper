@@ -2,25 +2,173 @@
 // This script runs on seller.flipkart.com to automate product listing
 (function () {
     let isLatching = false;
+    let skipCurrent = false;
     let currentIndex = 0;
     let products = [];
     let settings = {};
     let results = [];
+    let logPanel = null;
+    let logContent = null;
+    let progressText = null;
 
     console.log('[Seller Automation] Content script loaded on seller.flipkart.com');
+
+    // Create floating log panel
+    function createLogPanel() {
+        if (logPanel) return;
+
+        logPanel = document.createElement('div');
+        logPanel.id = 'flipkart-automation-panel';
+        logPanel.innerHTML = `
+            <style>
+                #flipkart-automation-panel {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    width: 350px;
+                    max-height: 400px;
+                    background: #1a1a2e;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                    z-index: 999999;
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    color: #fff;
+                    overflow: hidden;
+                }
+                #flipkart-automation-panel .panel-header {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 12px 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                #flipkart-automation-panel .panel-title {
+                    font-weight: 600;
+                    font-size: 14px;
+                }
+                #flipkart-automation-panel .panel-progress {
+                    font-size: 12px;
+                    opacity: 0.9;
+                }
+                #flipkart-automation-panel .panel-buttons {
+                    display: flex;
+                    gap: 8px;
+                    padding: 10px 16px;
+                    background: rgba(255,255,255,0.05);
+                }
+                #flipkart-automation-panel .panel-btn {
+                    flex: 1;
+                    padding: 8px 12px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                #flipkart-automation-panel .btn-skip {
+                    background: #f59e0b;
+                    color: #000;
+                }
+                #flipkart-automation-panel .btn-skip:hover {
+                    background: #d97706;
+                }
+                #flipkart-automation-panel .btn-stop {
+                    background: #ef4444;
+                    color: #fff;
+                }
+                #flipkart-automation-panel .btn-stop:hover {
+                    background: #dc2626;
+                }
+                #flipkart-automation-panel .panel-logs {
+                    max-height: 250px;
+                    overflow-y: auto;
+                    padding: 12px 16px;
+                    font-size: 11px;
+                    line-height: 1.6;
+                }
+                #flipkart-automation-panel .log-entry {
+                    padding: 4px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                #flipkart-automation-panel .log-time {
+                    color: #888;
+                    margin-right: 8px;
+                }
+                #flipkart-automation-panel .log-success { color: #22c55e; }
+                #flipkart-automation-panel .log-warning { color: #f59e0b; }
+                #flipkart-automation-panel .log-error { color: #ef4444; }
+                #flipkart-automation-panel .log-info { color: #3b82f6; }
+            </style>
+            <div class="panel-header">
+                <div>
+                    <div class="panel-title">🚀 Seller Automation</div>
+                    <div class="panel-progress" id="automation-progress">Initializing...</div>
+                </div>
+            </div>
+            <div class="panel-buttons">
+                <button class="panel-btn btn-skip" id="btn-skip-product">⏭️ Skip Current</button>
+                <button class="panel-btn btn-stop" id="btn-stop-automation">⏹️ Stop All</button>
+            </div>
+            <div class="panel-logs" id="automation-logs"></div>
+        `;
+        document.body.appendChild(logPanel);
+
+        logContent = document.getElementById('automation-logs');
+        progressText = document.getElementById('automation-progress');
+
+        // Button handlers
+        document.getElementById('btn-skip-product').addEventListener('click', () => {
+            skipCurrent = true;
+            addLog('User requested to skip current product', 'warning');
+        });
+
+        document.getElementById('btn-stop-automation').addEventListener('click', () => {
+            isLatching = false;
+            addLog('Automation stopped by user', 'error');
+            chrome.storage.local.set({ latchingActive: false });
+            setTimeout(() => {
+                if (logPanel) logPanel.remove();
+            }, 2000);
+        });
+    }
+
+    function addLog(message, type = 'info') {
+        console.log(`[Seller Automation] ${message}`);
+        if (!logContent) return;
+
+        const time = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span class="log-time">${time}</span><span class="log-${type}">${message}</span>`;
+        logContent.appendChild(entry);
+        logContent.scrollTop = logContent.scrollHeight;
+    }
+
+    function updateProgress(current, total, status = '') {
+        if (progressText) {
+            progressText.textContent = `${current}/${total} products ${status}`;
+        }
+    }
 
     // Check if latching is active on page load
     chrome.storage.local.get(['latchingActive', 'latchingProducts', 'latchingSettings', 'latchingIndex'], async (result) => {
         if (result.latchingActive && result.latchingProducts && result.latchingProducts.length > 0) {
-            console.log('[Seller Automation] Latching is active, starting automation...');
+            createLogPanel();
+            addLog('Automation started!', 'success');
+
             isLatching = true;
             products = result.latchingProducts;
             settings = result.latchingSettings || {};
             currentIndex = result.latchingIndex || 0;
             results = [];
 
+            updateProgress(currentIndex, products.length, '- Loading...');
+
             // Wait for page to fully load
+            addLog('Waiting for page to load...', 'info');
             await waitForElement('[data-testid="searchBox"]', 10000);
+            addLog('Page ready!', 'success');
 
             // Start processing products
             await processNextProduct();
@@ -38,8 +186,17 @@
     });
 
     async function processNextProduct() {
+        // Check for skip request
+        if (skipCurrent) {
+            skipCurrent = false;
+            addLog(`Skipped product: ${products[currentIndex]?.name?.substring(0, 30)}...`, 'warning');
+            results.push({ product: products[currentIndex]?.name, status: 'SKIPPED', message: 'Skipped by user' });
+            currentIndex++;
+        }
+
         if (!isLatching || currentIndex >= products.length) {
-            console.log('[Seller Automation] Latching complete!');
+            addLog('✅ Automation complete!', 'success');
+            updateProgress(products.length, products.length, '- Done!');
             chrome.storage.local.set({
                 latchingActive: false,
                 latchingResults: results
@@ -48,7 +205,10 @@
         }
 
         const product = products[currentIndex];
-        console.log(`[Seller Automation] Processing product ${currentIndex + 1}/${products.length}: ${product.name}`);
+        const shortName = (product.name || 'Unknown').substring(0, 35);
+
+        updateProgress(currentIndex + 1, products.length, `- Processing`);
+        addLog(`📦 [${currentIndex + 1}/${products.length}] ${shortName}...`, 'info');
 
         // Update progress in storage
         chrome.storage.local.set({ latchingIndex: currentIndex });
@@ -57,7 +217,7 @@
             // Step 1: Enter product URL in search box
             const searchInput = document.querySelector('[data-testid="searchBox"] input[data-testid="test-input"]');
             if (!searchInput) {
-                console.error('[Seller Automation] Search input not found');
+                addLog('❌ Search input not found', 'error');
                 results.push({ product: product.name, status: 'ERROR', message: 'Search input not found' });
                 currentIndex++;
                 await processNextProduct();
@@ -69,16 +229,20 @@
             searchInput.value = '';
             searchInput.value = product.url;
             searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            addLog('Pasting product URL...', 'info');
 
             await delay(500);
+
+            // Check for skip during delay
+            if (skipCurrent) { await processNextProduct(); return; }
 
             // Step 2: Click search icon
             const searchIcon = document.querySelector('[data-testid="searchIcon"]');
             if (searchIcon) {
                 searchIcon.click();
-                console.log('[Seller Automation] Clicked search button');
+                addLog('🔍 Searching...', 'info');
             } else {
-                console.error('[Seller Automation] Search icon not found');
+                addLog('❌ Search icon not found', 'error');
                 results.push({ product: product.name, status: 'ERROR', message: 'Search icon not found' });
                 currentIndex++;
                 await processNextProduct();
@@ -88,6 +252,9 @@
             // Step 3: Wait for results
             await delay(3000);
 
+            // Check for skip during delay
+            if (skipCurrent) { await processNextProduct(); return; }
+
             // Step 4: Check product status - ALREADY SELLING, APPLY FOR APPROVAL, or START SELLING
             const alreadySelling = document.querySelector('.primaryActionBar a.disabled.startSelling, .primaryActionBar a.alreadySelling');
             const applyForApproval = document.querySelector('.primaryActionBar a.applyForApprovalLink:not(.startSelling), .primaryActionBar a[href*="apply"]');
@@ -95,7 +262,7 @@
 
             // Check for ALREADY SELLING first
             if (alreadySelling && alreadySelling.textContent.includes('ALREADY SELLING')) {
-                console.log('[Seller Automation] Product already selling - skipping');
+                addLog('⚪ Already selling - skipped', 'warning');
                 results.push({ product: product.name, status: 'ALREADY_SELLING', message: 'Already listed, skipped' });
 
                 // Move to next product
@@ -107,7 +274,7 @@
             }
 
             if (applyForApproval && applyForApproval.textContent.includes('APPLY FOR APPROVAL')) {
-                console.log('[Seller Automation] Product needs approval');
+                addLog('🔒 Needs brand approval - skipped', 'warning');
                 results.push({ product: product.name, status: 'NEEDS_APPROVAL', message: 'Brand approval required' });
 
                 // Move to next product
@@ -119,16 +286,21 @@
             }
 
             if (startSelling) {
-                console.log('[Seller Automation] Clicking START SELLING');
+                addLog('🟢 START SELLING found - clicking...', 'success');
                 startSelling.click();
 
                 // Wait for form to appear
                 await waitForElement('form#latch-on-form', 5000);
                 await delay(1000);
 
+                // Check for skip during delay
+                if (skipCurrent) { await processNextProduct(); return; }
+
                 // Fill the form
+                addLog('📝 Filling listing form...', 'info');
                 await fillListingForm(product);
 
+                addLog('✅ Form filled successfully!', 'success');
                 results.push({ product: product.name, status: 'LISTED', message: 'Form filled successfully' });
 
                 // Move to next product
@@ -140,7 +312,7 @@
             }
 
             // No action found
-            console.log('[Seller Automation] No action button found for this product');
+            addLog('❓ No action button found', 'warning');
             results.push({ product: product.name, status: 'UNKNOWN', message: 'No action button found' });
             currentIndex++;
             await delay(1000);
