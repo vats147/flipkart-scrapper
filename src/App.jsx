@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
-import { Download, Play, Square, Copy, Image as ImageIcon, Power, Loader2, Check, Eye, ChevronDown, ChevronUp, Package, Search, Database } from 'lucide-react'
+import { Download, Play, Square, Copy, Image as ImageIcon, Power, Loader2, Check, Eye, ChevronDown, ChevronUp, Package, Search, Database, Settings } from 'lucide-react'
 import { cn } from "@/lib/utils" // Assuming cn utility is available
 
 const CopyButton = ({ text }) => {
@@ -74,10 +74,53 @@ function App() {
   const [advancedScraping, setAdvancedScraping] = useState(false)
   const [advancedProducts, setAdvancedProducts] = useState([])
   const [pagesCrawled, setPagesCrawled] = useState(0)
+  const [maxPages, setMaxPages] = useState(1) // Limit pages to scrape
+  const [showSettings, setShowSettings] = useState(false)
+
+  // Seller Form Settings (for auto-fill)
+  const [sellerSettings, setSellerSettings] = useState({
+    // Listing Info
+    skuPrefix: 'SKU-',
+    listingStatus: 'ACTIVE',
+
+    // Price Details
+    mrpMultiplier: 1.0, // Multiply scraped price by this
+    sellingPriceMultiplier: 1.0,
+    minOrderQty: '1',
+
+    // Inventory Details
+    fulfillmentBy: 'NON_FBF',
+    procurementType: 'REGULAR',
+    procurementSLA: '2',
+    stock: '10',
+
+    // Shipping
+    shippingProvider: 'FLIPKART',
+    localHandlingFee: '',
+    zonalHandlingFee: '',
+    nationalHandlingFee: '',
+
+    // Package Details
+    length: '',
+    breadth: '',
+    height: '',
+    weight: '',
+
+    // Tax Details
+    hsn: '',
+    luxuryCess: '',
+    taxCode: 'GST_18',
+
+    // Manufacturing Details
+    countryOfOrigin: 'IN',
+    manufacturerDetails: '',
+    packerDetails: '',
+    importerDetails: ''
+  })
 
   useEffect(() => {
-    // Load active state
-    chrome.storage.local.get(['extensionActive', 'scrapedProductData'], (result) => {
+    // Load active state and seller settings
+    chrome.storage.local.get(['extensionActive', 'scrapedProductData', 'sellerSettings'], (result) => {
       // Default to true if not set
       setIsActive(result.extensionActive !== false)
       if (result.scrapedProductData) {
@@ -86,6 +129,10 @@ function App() {
         if (result.scrapedProductData.images) {
           setSelectedImages(new Set(result.scrapedProductData.images));
         }
+      }
+      // Load saved seller settings
+      if (result.sellerSettings) {
+        setSellerSettings(prev => ({ ...prev, ...result.sellerSettings }));
       }
     });
 
@@ -290,6 +337,16 @@ function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  // Helper to update seller settings
+  const updateSellerSetting = (key, value) => {
+    setSellerSettings(prev => {
+      const updated = { ...prev, [key]: value };
+      // Auto-save to storage
+      chrome.storage.local.set({ sellerSettings: updated });
+      return updated;
+    });
   }
 
   // Determine which view to show based on activeTab
@@ -594,7 +651,199 @@ function App() {
                       <Download className="mr-2 h-4 w-4" /> Export CSV
                     </Button>
                   )}
+                  <Button onClick={() => setShowSettings(!showSettings)} variant="ghost" size="icon">
+                    <Settings className={cn("h-4 w-4", showSettings && "text-primary")} />
+                  </Button>
                 </div>
+
+                {/* Max Pages Input */}
+                <div className="flex items-center gap-2 text-sm">
+                  <label className="text-muted-foreground">Max Pages:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={maxPages}
+                    onChange={(e) => setMaxPages(parseInt(e.target.value) || 1)}
+                    className="w-16 px-2 py-1 border rounded text-center"
+                  />
+                  <span className="text-muted-foreground text-xs">(~{maxPages * 40} products)</span>
+                </div>
+
+                {/* Settings Form */}
+                {showSettings && (
+                  <div className="border rounded-lg p-4 bg-muted/20 space-y-4">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Seller Form Settings
+                    </h3>
+
+                    {/* Listing Info */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Listing Info</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs">SKU Prefix</label>
+                          <input
+                            type="text"
+                            value={sellerSettings.skuPrefix}
+                            onChange={(e) => updateSellerSetting('skuPrefix', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                            placeholder="SKU-"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">Status</label>
+                          <select
+                            value={sellerSettings.listingStatus}
+                            onChange={(e) => updateSellerSetting('listingStatus', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Inventory */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Inventory</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs">Stock</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.stock}
+                            onChange={(e) => updateSellerSetting('stock', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">Procurement SLA (days)</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.procurementSLA}
+                            onChange={(e) => updateSellerSetting('procurementSLA', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Package Details */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Package Details</div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-xs">L (cm)</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.length}
+                            onChange={(e) => updateSellerSetting('length', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">B (cm)</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.breadth}
+                            onChange={(e) => updateSellerSetting('breadth', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">H (cm)</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.height}
+                            onChange={(e) => updateSellerSetting('height', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">Wt (Kg)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={sellerSettings.weight}
+                            onChange={(e) => updateSellerSetting('weight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tax Details */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Tax Details</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs">HSN Code</label>
+                          <input
+                            type="text"
+                            value={sellerSettings.hsn}
+                            onChange={(e) => updateSellerSetting('hsn', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">Tax Code</label>
+                          <select
+                            value={sellerSettings.taxCode}
+                            onChange={(e) => updateSellerSetting('taxCode', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="GST_0">GST 0%</option>
+                            <option value="GST_5">GST 5%</option>
+                            <option value="GST_12">GST 12%</option>
+                            <option value="GST_18">GST 18%</option>
+                            <option value="GST_28">GST 28%</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Manufacturing Details */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Manufacturing Details</div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs">Country of Origin</label>
+                          <select
+                            value={sellerSettings.countryOfOrigin}
+                            onChange={(e) => updateSellerSetting('countryOfOrigin', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="IN">India</option>
+                            <option value="CN">China</option>
+                            <option value="US">USA</option>
+                            <option value="JP">Japan</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs">Manufacturer Details</label>
+                          <textarea
+                            value={sellerSettings.manufacturerDetails}
+                            onChange={(e) => updateSellerSetting('manufacturerDetails', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm h-16 resize-none"
+                            placeholder="Name, Address..."
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">Packer Details</label>
+                          <textarea
+                            value={sellerSettings.packerDetails}
+                            onChange={(e) => updateSellerSetting('packerDetails', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm h-16 resize-none"
+                            placeholder="Name, Address..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4">
