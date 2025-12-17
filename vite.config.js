@@ -19,6 +19,7 @@ export default defineConfig({
         contentSearch: path.resolve(__dirname, 'src/content/searchScraper.js'),
         contentProduct: path.resolve(__dirname, 'src/content/productScraper.js'),
         contentAdvancedSearch: path.resolve(__dirname, 'src/content/advancedSearchScraper.js'),
+        contentSeller: path.resolve(__dirname, 'src/content/sellerAutomation.js'),
       },
       output: {
         entryFileNames: 'assets/[name].js',

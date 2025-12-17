@@ -12,7 +12,8 @@
         "sidePanel"
     ],
     "host_permissions": [
-        "https://*.flipkart.com/*"
+        "https://*.flipkart.com/*",
+        "https://seller.flipkart.com/*"
     ],
     "action": {
         "default_title": "Flipkart Scraper"
@@ -40,6 +41,14 @@
             ],
             "js": [
                 "assets/contentProduct.js"
+            ]
+        },
+        {
+            "matches": [
+                "https://seller.flipkart.com/*"
+            ],
+            "js": [
+                "assets/contentSeller.js"
             ]
         }
     ],
