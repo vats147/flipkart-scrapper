@@ -759,6 +759,33 @@ function App() {
                       </div>
                     </div>
 
+                    {/* Price Details */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Price Details</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs">MRP (₹)</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.defaultMrp || ''}
+                            onChange={(e) => updateSellerSetting('defaultMrp', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                            placeholder="Leave empty to use scraped"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs">Selling Price (₹)</label>
+                          <input
+                            type="number"
+                            value={sellerSettings.defaultSellingPrice || ''}
+                            onChange={(e) => updateSellerSetting('defaultSellingPrice', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                            placeholder="Leave empty to use scraped"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Inventory */}
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">Inventory</div>

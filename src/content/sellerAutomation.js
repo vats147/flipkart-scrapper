@@ -344,10 +344,25 @@
         await setSelectValue('#listing_status', settings.listingStatus || 'ACTIVE');
 
         // Price Details
-        const mrp = priceNum * (settings.mrpMultiplier || 1);
-        const sellingPrice = priceNum * (settings.sellingPriceMultiplier || 1);
-        await setInputValue('#mrp', Math.round(mrp));
-        await setInputValue('#flipkart_selling_price', Math.round(sellingPrice));
+        // Price Details
+        // Use default settings if provided, otherwise calculate from scraped price
+        let mrp = 0;
+        let sellingPrice = 0;
+
+        if (settings.defaultMrp) {
+            mrp = parseFloat(settings.defaultMrp);
+        } else {
+            mrp = Math.round(priceNum * (settings.mrpMultiplier || 1));
+        }
+
+        if (settings.defaultSellingPrice) {
+            sellingPrice = parseFloat(settings.defaultSellingPrice);
+        } else {
+            sellingPrice = Math.round(priceNum * (settings.sellingPriceMultiplier || 1));
+        }
+
+        await setInputValue('#mrp', mrp);
+        await setInputValue('#flipkart_selling_price', sellingPrice);
         await setSelectValue('#minimum_order_quantity', settings.minOrderQty || '1');
 
         // Inventory Details
