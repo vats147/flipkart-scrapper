@@ -3,11 +3,14 @@
 (function () {
     let isAdvancedScraping = false;
     let pagesCrawled = 0;
+    let maxPagesToScrape = 1; // Default to 1 page
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "start_advanced_scraping") {
             isAdvancedScraping = true;
             pagesCrawled = 0;
+            maxPagesToScrape = request.maxPages || 1; // Get maxPages from request
+            console.log(`[Advanced Scraper] Starting with maxPages: ${maxPagesToScrape}`);
             scrapeAllPagesAdvanced();
             sendResponse({ status: "started" });
         } else if (request.action === "stop_advanced_scraping") {
@@ -24,7 +27,7 @@
 
         while (isAdvancedScraping) {
             pagesCrawled++;
-            console.log(`[Advanced Scraper] Scraping page ${pagesCrawled}...`);
+            console.log(`[Advanced Scraper] Scraping page ${pagesCrawled} of ${maxPagesToScrape}...`);
 
             // Scrape current page
             const products = scrapeCurrentPageAdvanced();
@@ -46,6 +49,12 @@
                 pagesCrawled: pagesCrawled,
                 totalProducts: allProducts.length
             });
+
+            // Check if we've reached maxPages limit
+            if (pagesCrawled >= maxPagesToScrape) {
+                console.log(`[Advanced Scraper] Reached maxPages limit (${maxPagesToScrape}). Stopping.`);
+                break;
+            }
 
             // Look for Next button
             const nextBtn = findNextButton();

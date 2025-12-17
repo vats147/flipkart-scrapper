@@ -77,6 +77,10 @@ function App() {
   const [maxPages, setMaxPages] = useState(1) // Limit pages to scrape
   const [showSettings, setShowSettings] = useState(false)
 
+  // Latching State
+  const [isLatching, setIsLatching] = useState(false)
+  const [latchingProgress, setLatchingProgress] = useState({ current: 0, total: 0, status: '' })
+
   // Seller Form Settings (for auto-fill)
   const [sellerSettings, setSellerSettings] = useState({
     // Listing Info
@@ -312,7 +316,7 @@ function App() {
     setAdvancedScraping(true);
     setAdvancedProducts([]);
     setPagesCrawled(0);
-    sendMessageToTab({ action: "start_advanced_scraping" });
+    sendMessageToTab({ action: "start_advanced_scraping", maxPages: maxPages });
   }
 
   const stopAdvancedScraping = () => {
@@ -347,6 +351,36 @@ function App() {
       chrome.storage.local.set({ sellerSettings: updated });
       return updated;
     });
+  }
+
+  // Start Latching - opens seller portal and begins automation
+  const startLatching = () => {
+    if (advancedProducts.length === 0) {
+      alert('No products to latch. Run scraping first!');
+      return;
+    }
+
+    // Save products and settings to storage for the seller content script
+    chrome.storage.local.set({
+      latchingProducts: advancedProducts,
+      latchingSettings: sellerSettings,
+      latchingIndex: 0,
+      latchingActive: true
+    }, () => {
+      setIsLatching(true);
+      setLatchingProgress({ current: 0, total: advancedProducts.length, status: 'Opening seller portal...' });
+
+      // Open seller portal in new tab
+      chrome.tabs.create({
+        url: 'https://seller.flipkart.com/index.html#dashboard/listingsInProgress'
+      });
+    });
+  }
+
+  const stopLatching = () => {
+    setIsLatching(false);
+    chrome.storage.local.set({ latchingActive: false });
+    setLatchingProgress({ current: 0, total: 0, status: 'Stopped' });
   }
 
   // Determine which view to show based on activeTab
@@ -670,6 +704,25 @@ function App() {
                   <span className="text-muted-foreground text-xs">(~{maxPages * 40} products)</span>
                 </div>
 
+                {/* Latching Button */}
+                {advancedProducts.length > 0 && !advancedScraping && (
+                  <div className="space-y-2">
+                    {!isLatching ? (
+                      <Button onClick={startLatching} className="w-full bg-green-600 hover:bg-green-700">
+                        <Play className="mr-2 h-4 w-4" /> Start Latching ({advancedProducts.length} products)
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <Button onClick={stopLatching} variant="destructive" className="w-full">
+                          <Square className="mr-2 h-4 w-4" /> Stop Latching
+                        </Button>
+                        <div className="text-xs text-center text-muted-foreground">
+                          {latchingProgress.status} ({latchingProgress.current}/{latchingProgress.total})
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {/* Settings Form */}
                 {showSettings && (
                   <div className="border rounded-lg p-4 bg-muted/20 space-y-4">
@@ -795,11 +848,24 @@ function App() {
                             onChange={(e) => updateSellerSetting('taxCode', e.target.value)}
                             className="w-full px-2 py-1 border rounded text-sm"
                           >
-                            <option value="GST_0">GST 0%</option>
-                            <option value="GST_5">GST 5%</option>
-                            <option value="GST_12">GST 12%</option>
-                            <option value="GST_18">GST 18%</option>
-                            <option value="GST_28">GST 28%</option>
+                            <option value="GST_0">GST_0</option>
+                            <option value="GST_3">GST_3</option>
+                            <option value="GST_5">GST_5</option>
+                            <option value="GST_18">GST_18</option>
+                            <option value="GST_40">GST_40</option>
+                            <option value="GST_APPAREL">GST_APPAREL</option>
+                            <option value="GST_Footwear">GST_Footwear</option>
+                            <option value="GST_Old_12_New_0">GST_Old_12_New_0</option>
+                            <option value="GST_Old_12_New_5">GST_Old_12_New_5</option>
+                            <option value="GST_Old_12_new_18">GST_Old_12_new_18</option>
+                            <option value="GST_Old_18_New_0">GST_Old_18_New_0</option>
+                            <option value="GST_Old_18_New_5">GST_Old_18_New_5</option>
+                            <option value="GST_Old_18_New_40">GST_Old_18_New_40</option>
+                            <option value="GST_Old_28_New_5">GST_Old_28_New_5</option>
+                            <option value="GST_Old_28_New_18">GST_Old_28_New_18</option>
+                            <option value="GST_Old_28_New_40">GST_Old_28_New_40</option>
+                            <option value="GST_Old_5_New_0">GST_Old_5_New_0</option>
+                            <option value="GST_Old_5_New_18">GST_Old_5_New_18</option>
                           </select>
                         </div>
                       </div>
