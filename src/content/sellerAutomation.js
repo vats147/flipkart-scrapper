@@ -152,7 +152,7 @@
     }
 
     // Check if latching is active on page load
-    chrome.storage.local.get(['latchingActive', 'latchingProducts', 'latchingSettings', 'latchingIndex'], async (result) => {
+    chrome.storage.local.get(['latchingActive', 'latchingProducts', 'latchingSettings', 'latchingIndex', 'latchingResults'], async (result) => {
         if (result.latchingActive && result.latchingProducts && result.latchingProducts.length > 0) {
             createLogPanel();
             addLog('Automation started!', 'success');
@@ -161,7 +161,11 @@
             products = result.latchingProducts;
             settings = result.latchingSettings || {};
             currentIndex = result.latchingIndex || 0;
-            results = [];
+            results = result.latchingResults || [];
+
+            if (currentIndex > 0) {
+                addLog(`Resuming from product ${currentIndex + 1}...`, 'info');
+            }
 
             updateProgress(currentIndex, products.length, '- Loading...');
 
@@ -417,16 +421,20 @@
     }
 
     async function goBackToSearch() {
-        // Click back icon or navigate back to listings page
-        const backIcon = document.querySelector('[data-testid="backIcon"]');
-        if (backIcon) {
-            backIcon.click();
-            await delay(1000);
-        }
+        addLog('⬅️ Navigating back to listings page...', 'info');
 
-        // Wait for search box to reappear
-        await waitForElement('[data-testid="searchBox"]', 5000);
-        await delay(500);
+        // Save current state before navigation
+        chrome.storage.local.set({
+            latchingIndex: currentIndex,
+            latchingActive: isLatching,
+            latchingResults: results
+        });
+
+        // Navigate to the listings page directly
+        window.location.href = 'https://seller.flipkart.com/index.html#dashboard/listingsInProgress';
+
+        // The page will reload and the script will pick up from latchingIndex
+        // No need to wait here as page will refresh
     }
 
     function delay(ms) {
