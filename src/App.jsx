@@ -212,7 +212,7 @@ function App() {
   }
 
   const copySpecs = () => {
-    if (!productData) return;
+    if (!productData?.specifications) return;
     const text = Object.entries(productData.specifications).map(([k, v]) => `${k}: ${v}`).join('\n')
     navigator.clipboard.writeText(text)
     alert("Specifications copied to clipboard!")
@@ -224,12 +224,15 @@ function App() {
       return;
     }
 
+    // Get safe filename from title or use default
+    const safeTitle = (productData?.title || 'product').substring(0, 20).replace(/[^a-z0-9]/gi, '_');
+
     // We send a message to background script to handle downloads to avoid CORS or permission issues if any
     Array.from(selectedImages).forEach((url, index) => {
       chrome.runtime.sendMessage({
         action: "download_image",
         url: url,
-        filename: `${productData.title.substring(0, 20).replace(/[^a-z0-9]/gi, '_')}_${index + 1}.jpg`
+        filename: `${safeTitle}_${index + 1}.jpg`
       })
     })
     alert(`Downloading ${selectedImages.size} images...Check your downloads folder.`);

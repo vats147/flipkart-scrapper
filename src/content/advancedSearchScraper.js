@@ -8,7 +8,7 @@
         if (request.action === "start_advanced_scraping") {
             isAdvancedScraping = true;
             pagesCrawled = 0;
-            scrapeAdvancedPage();
+            scrapeAllPagesAdvanced();
             sendResponse({ status: "started" });
         } else if (request.action === "stop_advanced_scraping") {
             isAdvancedScraping = false;
@@ -17,97 +17,155 @@
         return true;
     });
 
-    async function scrapeAdvancedPage() {
+    async function scrapeAllPagesAdvanced() {
         if (!isAdvancedScraping) return;
 
-        // For now, scrape ONE PAGE ONLY for testing
-        pagesCrawled++;
-        const products = scrapeCurrentPageAdvanced();
+        let allProducts = [];
 
-        console.log(`[Advanced Scraper] Scraped ${products.length} products from page ${pagesCrawled}`);
+        while (isAdvancedScraping) {
+            pagesCrawled++;
+            console.log(`[Advanced Scraper] Scraping page ${pagesCrawled}...`);
 
-        // Send products to UI
-        chrome.runtime.sendMessage({
-            action: "advanced_update",
-            products: products,
-            pagesCrawled: pagesCrawled
-        });
+            // Scrape current page
+            const products = scrapeCurrentPageAdvanced();
+            console.log(`[Advanced Scraper] Found ${products.length} products on page ${pagesCrawled}`);
 
-        // For now, stop after one page (as requested for testing)
-        // TODO: Later add logic to click "Next" button and continue
+            // If no products found, stop
+            if (products.length === 0) {
+                console.log('[Advanced Scraper] No products found on this page. Stopping.');
+                break;
+            }
+
+            // Add to all products
+            allProducts = [...allProducts, ...products];
+
+            // Send update to popup
+            chrome.runtime.sendMessage({
+                action: "advanced_update",
+                products: products,
+                pagesCrawled: pagesCrawled,
+                totalProducts: allProducts.length
+            });
+
+            // Look for Next button
+            const nextBtn = findNextButton();
+            if (nextBtn && isAdvancedScraping) {
+                console.log('[Advanced Scraper] Clicking Next button...');
+                nextBtn.click();
+
+                // Wait for page to load (2 seconds)
+                await new Promise(r => setTimeout(r, 2000));
+
+                // Wait for the container to appear (additional check)
+                await waitForContainer();
+            } else {
+                console.log('[Advanced Scraper] No Next button found. Finished scraping.');
+                break;
+            }
+        }
+
+        // Send finished message
         chrome.runtime.sendMessage({
             action: "advanced_scraping_finished",
-            pagesCrawled: pagesCrawled
+            pagesCrawled: pagesCrawled,
+            totalProducts: allProducts.length
         });
         isAdvancedScraping = false;
+        console.log(`[Advanced Scraper] Completed! Total: ${allProducts.length} products from ${pagesCrawled} pages.`);
     }
 
     function scrapeCurrentPageAdvanced() {
         const products = [];
 
-        // Find all product containers with data-id attribute
-        const productContainers = document.querySelectorAll('div[data-id]');
-        console.log(`[Advanced Scraper] Found ${productContainers.length} product containers`);
+        // Use the exact selector that works: .lvJbLV.col-12-12
+        const containers = document.querySelectorAll('.lvJbLV.col-12-12');
+        console.log(`[Advanced Scraper] Found ${containers.length} containers`);
 
-        productContainers.forEach(container => {
-            try {
-                // Extract data-id
-                const id = container.getAttribute('data-id');
-                if (!id) return;
+        containers.forEach((container) => {
+            // Find all items with data-id
+            const items = container.querySelectorAll('[data-id]');
 
-                // Extract name from the title attribute of the link
-                // Selector: a.pIpigb[title]
-                const titleLink = container.querySelector('a.pIpigb[title]');
-                const name = titleLink?.getAttribute('title')?.trim() || 'Unknown Product';
+            items.forEach((item) => {
+                try {
+                    // Get data-id
+                    const id = item.getAttribute('data-id') || '';
 
-                // Extract image
-                // Selector: img.UCc1lI
-                const imgElement = container.querySelector('img.UCc1lI');
-                const image = imgElement?.getAttribute('src') || '';
+                    // Get title from .pIpigb
+                    const titleEl = item.querySelector('.pIpigb');
+                    const title = titleEl
+                        ? (titleEl.getAttribute('title') || titleEl.textContent?.trim())
+                        : 'N/A';
 
-                // Extract price (listing price)
-                // Selector: div.hZ3P6w
-                const priceElement = container.querySelector('div.hZ3P6w');
-                const price = priceElement?.innerText?.trim() || 'N/A';
+                    // Get image from img.UCc1lI
+                    const imgEl = item.querySelector('img.UCc1lI');
+                    const image = imgEl ? imgEl.getAttribute('src') : '';
 
-                // Extract URL
-                const urlLink = container.querySelector('a.GnxRXv[href]');
-                const rawUrl = urlLink?.getAttribute('href') || '';
-                const url = rawUrl ? (rawUrl.startsWith('http') ? rawUrl : `https://www.flipkart.com${rawUrl}`) : '';
+                    // Get price from .hZ3P6w
+                    const priceEl = item.querySelector('.hZ3P6w');
+                    const price = priceEl ? priceEl.textContent?.trim() : 'N/A';
 
-                // Only add if we have valid data
-                if (id && name !== 'Unknown Product') {
-                    products.push({
-                        id: id,
-                        name: name,
-                        image: image,
-                        price: price,
-                        url: url
-                    });
+                    // Get URL from first link
+                    const linkEl = item.querySelector('a[href*="/p/"]');
+                    const rawUrl = linkEl?.getAttribute('href') || '';
+                    const url = rawUrl ? (rawUrl.startsWith('http') ? rawUrl : `https://www.flipkart.com${rawUrl}`) : '';
+
+                    // Only add if we have valid title and price
+                    if (title !== 'N/A' && price !== 'N/A' && id) {
+                        products.push({
+                            id: id,
+                            name: title,
+                            image: image,
+                            price: price,
+                            url: url
+                        });
+                    }
+                } catch (error) {
+                    console.error('[Advanced Scraper] Error scraping item:', error);
                 }
-            } catch (error) {
-                console.error('[Advanced Scraper] Error scraping product:', error);
-            }
+            });
         });
 
         return products;
     }
 
-    // Function to find and click Next button (for future use)
     function findNextButton() {
         try {
-            // Selector: a.jgg0SZ containing "Next"
-            const nextLinks = document.querySelectorAll('a.jgg0SZ');
-            for (let link of nextLinks) {
-                if (link.innerText?.trim().toLowerCase() === 'next') {
+            // Look for the Next button with class jgg0SZ
+            const nextLink = document.querySelector('a.jgg0SZ');
+            if (nextLink) {
+                // Verify it contains "Next" text
+                const text = nextLink.textContent?.trim().toLowerCase();
+                if (text === 'next' || nextLink.querySelector('span')?.textContent?.trim().toLowerCase() === 'next') {
+                    return nextLink;
+                }
+            }
+
+            // Fallback: Look for any link/span with "Next" text
+            const allLinks = document.querySelectorAll('nav.iu0OAI a');
+            for (let link of allLinks) {
+                if (link.textContent?.trim().toLowerCase() === 'next') {
                     return link;
                 }
             }
+
             return null;
         } catch (error) {
             console.error('[Advanced Scraper] Error finding next button:', error);
             return null;
         }
+    }
+
+    async function waitForContainer() {
+        // Wait up to 5 seconds for the container to appear
+        for (let i = 0; i < 10; i++) {
+            const container = document.querySelector('.lvJbLV.col-12-12');
+            if (container) {
+                return true;
+            }
+            await new Promise(r => setTimeout(r, 500));
+        }
+        console.log('[Advanced Scraper] Container not found after waiting');
+        return false;
     }
 
     console.log('[Advanced Scraper] Content script loaded');
