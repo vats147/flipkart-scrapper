@@ -88,9 +88,23 @@
             // Step 3: Wait for results
             await delay(3000);
 
-            // Step 4: Check for APPLY FOR APPROVAL or START SELLING
+            // Step 4: Check product status - ALREADY SELLING, APPLY FOR APPROVAL, or START SELLING
+            const alreadySelling = document.querySelector('.primaryActionBar a.disabled.startSelling, .primaryActionBar a.alreadySelling');
             const applyForApproval = document.querySelector('.primaryActionBar a.applyForApprovalLink:not(.startSelling), .primaryActionBar a[href*="apply"]');
-            const startSelling = document.querySelector('.primaryActionBar a.startSelling.listingsModalLink');
+            const startSelling = document.querySelector('.primaryActionBar a.startSelling.listingsModalLink:not(.disabled)');
+
+            // Check for ALREADY SELLING first
+            if (alreadySelling && alreadySelling.textContent.includes('ALREADY SELLING')) {
+                console.log('[Seller Automation] Product already selling - skipping');
+                results.push({ product: product.name, status: 'ALREADY_SELLING', message: 'Already listed, skipped' });
+
+                // Move to next product
+                currentIndex++;
+                await delay(1000);
+                await goBackToSearch();
+                await processNextProduct();
+                return;
+            }
 
             if (applyForApproval && applyForApproval.textContent.includes('APPLY FOR APPROVAL')) {
                 console.log('[Seller Automation] Product needs approval');
