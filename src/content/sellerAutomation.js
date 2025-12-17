@@ -383,10 +383,20 @@
 
         console.log('[Seller Automation] Form filled successfully');
 
-        // Note: NOT auto-submitting for safety. User can review and submit manually.
-        // To auto-submit, uncomment below:
-        // const submitBtn = document.querySelector('form#latch-on-form button[type="submit"]');
-        // if (submitBtn) submitBtn.click();
+        addLog('💾 Submitting form...', 'info');
+
+        // Try multiple selectors for the submit button
+        const submitBtn = document.querySelector('form#latch-on-form button[type="submit"]') ||
+            document.querySelector('button[type="submit"].styles__Button-sc-141aa9u-0') ||
+            Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Start Selling') || b.textContent.includes('Submit'));
+
+        if (submitBtn) {
+            submitBtn.click();
+            addLog('✅ Clicked Submit!', 'success');
+            await delay(2000); // Wait for submission
+        } else {
+            addLog('❌ Submit button not found!', 'error');
+        }
     }
 
     async function setInputValue(selector, value) {
