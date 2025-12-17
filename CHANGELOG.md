@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2025-12-17
+
+### Added
+- Integrated MRP fetching from search result pages.
+- Updated seller automation to fallback to scraped MRP.
+- Display scraped MRP in the results table.
+
 ## [1.1.0] - 2025-12-17
 
 ### Added
